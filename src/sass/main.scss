@@ -1,0 +1,32 @@
+body{
+  font-family: "Proxima Nova", Helvetica, Arial, sans-serif;
+}
+.Page{
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1.5em;
+  background: hsla(0, 0%, 93%, 1);
+}
+
+
+.SMSList{
+  background: hsl(0, 0%, 97%);
+  padding: 0.75em;
+  border-radius: 0.3em;
+  box-shadow: hsla(0, 0%, 33%, 0.3) 0 1px 1px;
+  border-top: 1px solid hsl(0, 0%, 100%);
+}
+.SMSList-add{
+  padding: 0.75em;
+  padding-top: 0;
+}
+.SMSList-list{
+  background: hsl(0, 0%, 94%);
+  padding: 0.75em;
+  margin: 0;
+  list-style: none;
+  li{
+    border-bottom: 1px solid hsl(0, 0%, 90%);
+    padding: 0.25em 0;
+  }
+}

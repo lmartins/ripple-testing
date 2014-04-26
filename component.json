@@ -1,0 +1,17 @@
+{
+  "name": "Ripple",
+  "paths": [
+    "mycomponents"
+  ],
+  "local": [
+    "hello_button"
+  ],
+  "dependencies": {
+    "ripplejs/ripple": "*",
+    "ripplejs/events": "*",
+    "ripplejs/each": "*",
+    "ripplejs/dispatch": "*",
+    "ripplejs/refs": "*",
+    "ripplejs/array-observer": "*"
+  }
+}
