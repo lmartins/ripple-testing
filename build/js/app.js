@@ -1,4 +1,4 @@
-var Avatar, CustomSMS, Link, List, Profile, customSMSList, customSMSTemplate, dispatch, each, events, list, listTemplate, observer, phoneList, profile, profileTemplate, refs, ripple;
+var CustomSMS, customSMSList, customSMSTemplate, dispatch, each, events, observer, phoneList, refs, ripple;
 
 ripple = require('ripple');
 
@@ -11,44 +11,6 @@ each = require("each");
 dispatch = require("dispatch");
 
 observer = require("array-observer");
-
-profileTemplate = "<div class=\"Profile\">\n  <profile-avatar username=\"{{username}}\"></profile-avatar>\n  <profile-link username=\"{{username}}\"></profile-link>\n</div>";
-
-Avatar = ripple('Avatar: {{username}}');
-
-Link = ripple('Link: {{username}}');
-
-Profile = ripple(profileTemplate).compose('profile-avatar', Avatar).compose('profile-link', Link);
-
-profile = new Profile({
-  data: {
-    username: 'lmartins'
-  }
-});
-
-profile.appendTo('.Page');
-
-listTemplate = "<div class=\"ItemsList\">\n  <ul each=\"{{items}}\">\n    <li>\n      {{name}} <button on-click=\"{{ this.removeItem.bind(this, $index) }}\">Remove</button>\n    </li>\n  </ul>\n</div>";
-
-List = ripple(listTemplate).use(events).use(each);
-
-List.prototype.removeItem = function(index) {
-  return this.data.items.splice(index, 1);
-};
-
-list = new List({
-  data: {
-    items: [
-      {
-        name: "Name1"
-      }, {
-        name: "Name2"
-      }
-    ]
-  }
-});
-
-list.appendTo('.Page');
 
 customSMSTemplate = "<div class=\"SMSList\">\n  <div class=\"SMSList-add\">\n    <input type=\"text\" ref=\"number\" on-enter=\"{{ this.add }}\" />\n    <button on-click=\"{{ this.add }}\">Add</button>\n    <button on-click=\"{{ this.sort }}\">Sort</button>\n    <button on-click=\"{{ this.clear }}\">Remove All</button>\n  </div>\n  <ul each=\"{{items}}\" class=\"SMSList-list\">\n    <li>{{number}} <button on-click=\"{{ this.removeItem.bind(this, $index) }}\">Remove</button></li>\n  </ul>\n</div>";
 
