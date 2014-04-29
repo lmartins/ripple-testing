@@ -4,7 +4,6 @@
     "mycomponents"
   ],
   "local": [
-    "hello_button"
   ],
   "dependencies": {
     "ripplejs/ripple": "*",
