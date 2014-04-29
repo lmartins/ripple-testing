@@ -10,8 +10,6 @@
     "ripplejs/ripple": "*",
     "ripplejs/events": "*",
     "ripplejs/each": "*",
-    "ripplejs/dispatch": "*",
-    "ripplejs/refs": "*",
-    "ripplejs/array-observer": "*"
+    "ripplejs/refs": "*"
   }
 }

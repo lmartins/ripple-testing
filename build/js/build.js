@@ -12,13 +12,8 @@ function require(path, parent, orig) {
 
   // lookup failed
   if (null == resolved) {
-    orig = orig || path;
-    parent = parent || 'root';
-    var err = new Error('Failed to require "' + orig + '" from "' + parent + '"');
-    err.path = orig;
-    err.parent = parent;
-    err.require = true;
-    throw err;
+    throwError()
+    return
   }
 
   var module = require.modules[resolved];
@@ -34,6 +29,16 @@ function require(path, parent, orig) {
     module.call(this, mod.exports, require.relative(resolved), mod);
     delete module._resolving;
     module.exports = mod.exports;
+  }
+
+  function throwError () {
+    orig = orig || path;
+    parent = parent || 'root';
+    var err = new Error('Failed to require "' + orig + '" from "' + parent + '"');
+    err.path = orig;
+    err.parent = parent;
+    err.require = true;
+    throw err;
   }
 
   return module.exports;
@@ -65,21 +70,21 @@ require.aliases = {};
  * @api private
  */
 
+require.exts = [
+    '',
+    '.js',
+    '.json',
+    '/index.js',
+    '/index.json'
+ ];
+
 require.resolve = function(path) {
   if (path.charAt(0) === '/') path = path.slice(1);
 
-  var paths = [
-    path,
-    path + '.js',
-    path + '.json',
-    path + '/index.js',
-    path + '/index.json'
-  ];
-
-  for (var i = 0; i < paths.length; i++) {
-    var path = paths[i];
-    if (require.modules.hasOwnProperty(path)) return path;
-    if (require.aliases.hasOwnProperty(path)) return require.aliases[path];
+  for (var i = 0; i < 5; i++) {
+    var fullPath = path + require.exts[i];
+    if (require.modules.hasOwnProperty(fullPath)) return fullPath;
+    if (require.aliases.hasOwnProperty(fullPath)) return require.aliases[fullPath];
   }
 };
 
@@ -93,6 +98,7 @@ require.resolve = function(path) {
  */
 
 require.normalize = function(curr, path) {
+
   var segs = [];
 
   if ('.' != path.charAt(0)) return path;
@@ -101,13 +107,12 @@ require.normalize = function(curr, path) {
   path = path.split('/');
 
   for (var i = 0; i < path.length; ++i) {
-    if ('..' == path[i]) {
+    if ('..' === path[i]) {
       curr.pop();
     } else if ('.' != path[i] && '' != path[i]) {
       segs.push(path[i]);
     }
   }
-
   return curr.concat(segs).join('/');
 };
 
@@ -133,9 +138,14 @@ require.register = function(path, definition) {
 
 require.alias = function(from, to) {
   if (!require.modules.hasOwnProperty(from)) {
-    throw new Error('Failed to alias "' + from + '", it does not exist');
+    throwError()
+    return
   }
   require.aliases[to] = from;
+
+  function throwError () {
+    throw new Error('Failed to alias "' + from + '", it does not exist');
+  }
 };
 
 /**
@@ -148,18 +158,6 @@ require.alias = function(from, to) {
 
 require.relative = function(parent) {
   var p = require.normalize(parent, '..');
-
-  /**
-   * lastIndexOf helper.
-   */
-
-  function lastIndexOf(arr, obj) {
-    var i = arr.length;
-    while (i--) {
-      if (arr[i] === obj) return i;
-    }
-    return -1;
-  }
 
   /**
    * The relative require() itself.
@@ -176,16 +174,20 @@ require.relative = function(parent) {
 
   localRequire.resolve = function(path) {
     var c = path.charAt(0);
-    if ('/' == c) return path.slice(1);
-    if ('.' == c) return require.normalize(p, path);
+    if ('/' === c) return path.slice(1);
+    if ('.' === c) return require.normalize(p, path);
 
     // resolve deps by returning
     // the dep in the nearest "deps"
     // directory
     var segs = parent.split('/');
-    var i = lastIndexOf(segs, 'deps') + 1;
-    if (!i) i = 0;
-    path = segs.slice(0, i + 1).join('/') + '/deps/' + path;
+    var i = segs.length;
+    while (i--) {
+      if (segs[i] === 'deps') {
+        break;
+      }
+    }
+    path = segs.slice(0, i + 2).join('/') + '/deps/' + path;
     return path;
   };
 
@@ -307,6 +309,7 @@ function walk(el, process, done, root) {
 }
 
 module.exports = walk;
+
 });
 require.register("anthonyshort-is-boolean-attribute/index.js", function(exports, require, module){
 
@@ -674,11 +677,8 @@ require.register("component-to-function/index.js", function(exports, require, mo
 /**
  * Module Dependencies
  */
-try {
-  var expr = require('props');
-} catch(e) {
-  var expr = require('component-props');
-}
+
+var expr = require('props');
 
 /**
  * Expose `toFunction()`.
@@ -1409,284 +1409,11 @@ exports.set = function(obj, path, value) {
   target[last] = value;
 };
 });
-require.register("jkroso-type/index.js", function(exports, require, module){
-
-var toString = {}.toString
-var DomNode = typeof window != 'undefined'
-  ? window.Node
-  : Function
-
-/**
- * Return the type of `val`.
- *
- * @param {Mixed} val
- * @return {String}
- * @api public
- */
-
-module.exports = exports = function(x){
-  var type = typeof x
-  if (type != 'object') return type
-  type = types[toString.call(x)]
-  if (type) return type
-  if (x instanceof DomNode) switch (x.nodeType) {
-    case 1:  return 'element'
-    case 3:  return 'text-node'
-    case 9:  return 'document'
-    case 11: return 'document-fragment'
-    default: return 'dom-node'
-  }
-}
-
-var types = exports.types = {
-  '[object Function]': 'function',
-  '[object Date]': 'date',
-  '[object RegExp]': 'regexp',
-  '[object Arguments]': 'arguments',
-  '[object Array]': 'array',
-  '[object String]': 'string',
-  '[object Null]': 'null',
-  '[object Undefined]': 'undefined',
-  '[object Number]': 'number',
-  '[object Boolean]': 'boolean',
-  '[object Object]': 'object',
-  '[object Text]': 'text-node',
-  '[object Uint8Array]': 'bit-array',
-  '[object Uint16Array]': 'bit-array',
-  '[object Uint32Array]': 'bit-array',
-  '[object Uint8ClampedArray]': 'bit-array',
-  '[object Error]': 'error',
-  '[object FormData]': 'form-data',
-  '[object File]': 'file',
-  '[object Blob]': 'blob'
-}
-
-});
-require.register("jkroso-equals/index.js", function(exports, require, module){
-
-var type = require('type')
-
-/**
- * expose equals
- */
-
-module.exports = equals
-equals.compare = compare
-
-/**
- * assert all values are equal
- *
- * @param {Any} [...]
- * @return {Boolean}
- */
-
- function equals(){
-  var i = arguments.length - 1
-  while (i > 0) {
-    if (!compare(arguments[i], arguments[--i])) return false
-  }
-  return true
-}
-
-// (any, any, [array]) -> boolean
-function compare(a, b, memos){
-  // All identical values are equivalent
-  if (a === b) return true
-  var fnA = types[type(a)]
-  var fnB = types[type(b)]
-  return fnA && fnA === fnB
-    ? fnA(a, b, memos)
-    : false
-}
-
-var types = {}
-
-// (Number) -> boolean
-types.number = function(a){
-  // NaN check
-  return a !== a
-}
-
-// (function, function, array) -> boolean
-types['function'] = function(a, b, memos){
-  return a.toString() === b.toString()
-    // Functions can act as objects
-    && types.object(a, b, memos)
-    && compare(a.prototype, b.prototype)
-}
-
-// (date, date) -> boolean
-types.date = function(a, b){
-  return +a === +b
-}
-
-// (regexp, regexp) -> boolean
-types.regexp = function(a, b){
-  return a.toString() === b.toString()
-}
-
-// (DOMElement, DOMElement) -> boolean
-types.element = function(a, b){
-  return a.outerHTML === b.outerHTML
-}
-
-// (textnode, textnode) -> boolean
-types.textnode = function(a, b){
-  return a.textContent === b.textContent
-}
-
-// decorate `fn` to prevent it re-checking objects
-// (function) -> function
-function memoGaurd(fn){
-  return function(a, b, memos){
-    if (!memos) return fn(a, b, [])
-    var i = memos.length, memo
-    while (memo = memos[--i]) {
-      if (memo[0] === a && memo[1] === b) return true
-    }
-    return fn(a, b, memos)
-  }
-}
-
-types['arguments'] =
-types.array = memoGaurd(compareArrays)
-
-// (array, array, array) -> boolean
-function compareArrays(a, b, memos){
-  var i = a.length
-  if (i !== b.length) return false
-  memos.push([a, b])
-  while (i--) {
-    if (!compare(a[i], b[i], memos)) return false
-  }
-  return true
-}
-
-types.object = memoGaurd(compareObjects)
-
-// (object, object, array) -> boolean
-function compareObjects(a, b, memos) {
-  var ka = getEnumerableProperties(a)
-  var kb = getEnumerableProperties(b)
-  var i = ka.length
-
-  // same number of properties
-  if (i !== kb.length) return false
-
-  // although not necessarily the same order
-  ka.sort()
-  kb.sort()
-
-  // cheap key test
-  while (i--) if (ka[i] !== kb[i]) return false
-
-  // remember
-  memos.push([a, b])
-
-  // iterate again this time doing a thorough check
-  i = ka.length
-  while (i--) {
-    var key = ka[i]
-    if (!compare(a[key], b[key], memos)) return false
-  }
-
-  return true
-}
-
-// (object) -> array
-function getEnumerableProperties (object) {
-  var result = []
-  for (var k in object) if (k !== 'constructor') {
-    result.push(k)
-  }
-  return result
-}
-
-});
-require.register("component-clone/index.js", function(exports, require, module){
-/**
- * Module dependencies.
- */
-
-var type;
-try {
-  type = require('component-type');
-} catch (_) {
-  type = require('type');
-}
-
-/**
- * Module exports.
- */
-
-module.exports = clone;
-
-/**
- * Clones objects.
- *
- * @param {Mixed} any object
- * @api public
- */
-
-function clone(obj){
-  switch (type(obj)) {
-    case 'object':
-      var copy = {};
-      for (var key in obj) {
-        if (obj.hasOwnProperty(key)) {
-          copy[key] = clone(obj[key]);
-        }
-      }
-      return copy;
-
-    case 'array':
-      var copy = new Array(obj.length);
-      for (var i = 0, l = obj.length; i < l; i++) {
-        copy[i] = clone(obj[i]);
-      }
-      return copy;
-
-    case 'regexp':
-      // from millermedeiros/amd-utils - MIT
-      var flags = '';
-      flags += obj.multiline ? 'm' : '';
-      flags += obj.global ? 'g' : '';
-      flags += obj.ignoreCase ? 'i' : '';
-      return new RegExp(obj.source, flags);
-
-    case 'date':
-      return new Date(obj.getTime());
-
-    default: // string, number, boolean, …
-      return obj;
-  }
-}
-
-});
 require.register("ripplejs-path-observer/index.js", function(exports, require, module){
 var emitter = require('emitter');
-var equals = require('equals');
-var clone = require('clone');
 var keypath = require('keypath');
-
-/**
- * Takes a path like ‘foo.bar.baz’ and returns
- * an array we can iterate over for all parts.
- * eg. [‘foo’, ‘foo.bar’, ‘foo.bar.baz’]
- *
- * @param {String} key
- *
- * @return {Array}
- */
-function resolvePaths(key) {
-  var used = [];
-  var paths = key.split('.').map(function(path){
-    used.push(path);
-    return used.join('.');
-  });
-  paths.pop();
-  return paths;
-}
+var type = require('type');
+var raf = require('raf-queue');
 
 module.exports = function(obj) {
 
@@ -1708,52 +1435,55 @@ module.exports = function(obj) {
   function PathObserver(path) {
     if(!(this instanceof PathObserver)) return new PathObserver(path);
     if(cache[path]) return cache[path];
-
     this.path = path;
-    this.paths = resolvePaths(path);
-    this.previous = clone(this.get());
-    this.check();
-
-    // Whenever a parent path changes we should
-    // check to see if this path has changed
-    this.changes = this.paths.map(function(name){
-      var observer = new PathObserver(name);
-      return observer.change(this.check.bind(this));
-    }, this);
-
+    Object.defineProperty(this, 'value', {
+      get: function() {
+        return keypath.get(obj, this.path);
+      },
+      set: function(val) {
+        keypath.set(obj, this.path, val);
+      }
+    });
     cache[path] = this;
   }
 
   /**
    * Remove all path observers
    */
-  PathObserver.dispose = function(){
+  PathObserver.dispose = function() {
     for(var path in cache) {
       cache[path].dispose();
     }
+    this.off();
+  };
+
+  /**
+   * Emit a change event next tick
+   */
+  PathObserver.change = function() {
+    raf.once(this.notify, this);
+  };
+
+  /**
+   * Notify observers of a change
+   */
+  PathObserver.notify = function() {
+    this.emit('change');
   };
 
   /**
    * Mixin
    */
+  emitter(PathObserver);
   emitter(PathObserver.prototype);
 
   /**
-   * Has the path changed?
-   *
-   * @return {Boolean}
-   */
-  PathObserver.prototype.dirty = function() {
-    return equals(this.previous, this.get()) === false;
-  };
-
-  /**
-   * Get the value of the path
+   * Get the value of the path.
    *
    * @return {Mixed}
    */
-  PathObserver.prototype.get = function(){
-    return keypath.get(obj, this.path);
+  PathObserver.prototype.get = function() {
+    return this.value;
   };
 
   /**
@@ -1762,42 +1492,30 @@ module.exports = function(obj) {
    * @return {PathObserver}
    */
   PathObserver.prototype.set = function(val) {
-    keypath.set(obj, this.path, val);
-    this.check(); // This will be automatic with object.observe
+    var current = this.value;
+
+    if (type(val) === 'object') {
+      var changes = 0;
+      for (var key in val) {
+        var path = new PathObserver(this.path + '.' + key);
+        path.once('change', function(){
+          changes += 1;
+        });
+        path.set(val[key]);
+      }
+      if (changes > 0) {
+        this.emit('change', this.value, current);
+      }
+      return;
+    }
+
+    // no change
+    if(current === val) return this;
+
+    this.value = val;
+    this.emit('change', this.value, current);
+    PathObserver.change();
     return this;
-  };
-
-  /**
-   * Announce changes. It won't do anything
-   * if the value hasn't actually changed
-   *
-   * @param {Mixed} value
-   *
-   * @api public
-   * @return {void}
-   */
-  PathObserver.prototype.check = function() {
-    var current = this.get();
-    var previous = this.previous;
-    if(!this.dirty()) return;
-    this.previous = clone(current);
-    this.notify(current, previous);
-  };
-
-  /**
-   * Emits the change event that triggers callback
-   * events in object watching for changes
-   *
-   * @api public
-   * @return {void}
-   */
-  PathObserver.prototype.notify = function() {
-    var args = Array.prototype.slice.call(arguments);
-    args.unshift('change');
-    this.emit.apply(this, args);
-    this.paths.forEach(function(name){
-      if(cache[name]) cache[name].check();
-    });
   };
 
   /**
@@ -1819,21 +1537,19 @@ module.exports = function(obj) {
    * Clean up and remove all event bindings
    */
   PathObserver.prototype.dispose = function(){
-    this.emit('dispose');
     this.off('change');
-    this.previous = null;
-    this.changes.forEach(function(unbind){
-      unbind();
-    });
-    cache[this.path] = null;
+    delete cache[this.path];
   };
 
   return PathObserver;
 };
 });
 require.register("component-indexof/index.js", function(exports, require, module){
+
+var indexOf = [].indexOf;
+
 module.exports = function(arr, obj){
-  if (arr.indexOf) return arr.indexOf(obj);
+  if (indexOf) return arr.indexOf(obj);
   for (var i = 0; i < arr.length; ++i) {
     if (arr[i] === obj) return i;
   }
@@ -1892,9 +1608,10 @@ module.exports = function(template) {
 });
 require.register("ripplejs-ripple/lib/view.js", function(exports, require, module){
 var emitter = require('emitter');
+var each = require('each');
 var model = require('./model');
 var Bindings = require('./bindings');
-var each = require('each');
+var render = require('./render');
 
 /**
  * Each of the events that are called on the view
@@ -1928,23 +1645,15 @@ function getNode(node) {
   return node;
 }
 
-module.exports = function(template) {
+/**
+ * Create a new view from a template string
+ *
+ * @param {String} template
+ *
+ * @return {View}
+ */
 
-  /**
-   * Stores all of the directives, views,
-   * filters etc. that we might want to share
-   * between views.
-   *
-   * @type {Bindings}
-   */
-  var bindings = new Bindings();
-
-  /**
-   * Stores the state of the view.
-   *
-   * @type {Function}
-   */
-  var Model = model();
+function createView(template) {
 
   /**
    * The view controls the lifecycle of the
@@ -1952,14 +1661,14 @@ module.exports = function(template) {
    * Each element can only have one view and
    * each view can only have one element.
    */
+
   function View(options) {
     options = options || {};
     View.emit('construct', this, [options]);
     this.options = options;
     this.children = [];
-    this.template = options.template || template;
     this.owner = options.owner;
-    this.bindings = options.bindings || bindings;
+    this.template = options.template || template;
     this.root = this;
     if (this.owner) {
       this.owner.children.push(this);
@@ -1967,7 +1676,7 @@ module.exports = function(template) {
     }
     this.scope = options.scope;
     this.scopeWatchers = {};
-    this.model = new Model(View.parse(options));
+    this.model = new View.Model(View.parse(options));
     this.data = this.model.props;
     View.emit('created', this);
     this.el = this.render();
@@ -1977,8 +1686,27 @@ module.exports = function(template) {
   /**
    * Mixins
    */
+
   emitter(View);
   emitter(View.prototype);
+
+  /**
+   * Stores all of the directives, views,
+   * filters etc. that we might want to share
+   * between views.
+   *
+   * @type {Bindings}
+   */
+
+  View.bindings = new Bindings();
+
+  /**
+   * Stores the state of the view.
+   *
+   * @type {Function}
+   */
+
+  View.Model = model();
 
   /**
    * Add a directive
@@ -1988,8 +1716,9 @@ module.exports = function(template) {
    *
    * @return {View}
    */
+
   View.directive = function(match, fn) {
-    bindings.directive(match, fn);
+    this.bindings.directive(match, fn);
     return this;
   };
 
@@ -2001,8 +1730,9 @@ module.exports = function(template) {
    *
    * @return {View}
    */
+
   View.compose = function(name, Child) {
-    bindings.component(name, Child);
+    this.bindings.component(name, Child);
     return this;
   };
 
@@ -2014,6 +1744,7 @@ module.exports = function(template) {
    *
    * @return {View}
    */
+
   View.filter = function(name, fn) {
     if (typeof name !== 'string') {
       for(var key in name) {
@@ -2021,7 +1752,7 @@ module.exports = function(template) {
       }
       return;
     }
-    bindings.filter(name, fn);
+    this.bindings.filter(name, fn);
     return this;
   };
 
@@ -2030,14 +1761,31 @@ module.exports = function(template) {
    *
    * @return {View}
    */
+
   View.use = function(fn, options) {
     fn(View, options);
     return this;
   };
 
   /**
+   * Create a new view from a template that shares
+   * all of the same Bindings
+   *
+   * @param {String} template
+   *
+   * @return {View}
+   */
+
+  View.create = function(template) {
+    var Child = createView(template);
+    Child.bindings = this.bindings;
+    return Child;
+  };
+
+  /**
    * Create helper methods for binding to events
    */
+
   lifecycleEvents.forEach(function(name) {
     View[name] = function(fn){
       View.on(name, function(view, args){
@@ -2049,6 +1797,7 @@ module.exports = function(template) {
   /**
    * Parse the options for the initial data
    */
+
   View.parse = function(options) {
     return options.data;
   };
@@ -2062,6 +1811,7 @@ module.exports = function(template) {
    *
    * @param {Object} obj
    */
+
   View.prototype.set = function(key, value) {
     if ( typeof key !== 'string' ) {
       for(var name in key) this.set(name, key[name]);
@@ -2084,6 +1834,7 @@ module.exports = function(template) {
    *
    * @param {String} key
    */
+
   View.prototype.get = function(key) {
     var value = this.model.get(key);
     if (value === undefined && this.scope) {
@@ -2093,8 +1844,21 @@ module.exports = function(template) {
   };
 
   /**
+   * Get all the properties used in a string
+   *
+   * @param {String} str
+   *
+   * @return {Array}
+   */
+
+  View.prototype.props = function(str) {
+    return View.bindings.interpolator.props(str);
+  };
+
+  /**
    * Remove the element from the DOM
    */
+
   View.prototype.destroy = function() {
     var self = this;
     this.emit('destroying');
@@ -2129,6 +1893,7 @@ module.exports = function(template) {
    *
    * @return {Boolean}
    */
+
   View.prototype.isMounted = function() {
     return this.el != null && this.el.parentNode != null;
   };
@@ -2137,8 +1902,13 @@ module.exports = function(template) {
    * Render the view to an element. This should
    * only ever render the element once.
    */
+
   View.prototype.render = function() {
-    return this.bindings.bind(this);
+    return render({
+      view: this,
+      template: this.template,
+      bindings: View.bindings
+    });
   };
 
   /**
@@ -2148,6 +1918,7 @@ module.exports = function(template) {
    *
    * @return {View}
    */
+
   View.prototype.appendTo = function(node) {
     getNode(node).appendChild(this.el);
     this.emit('mounted');
@@ -2162,6 +1933,7 @@ module.exports = function(template) {
    *
    * @return {View}
    */
+
   View.prototype.replace = function(node) {
     var target = getNode(node);
     target.parentNode.replaceChild(this.el, target);
@@ -2177,8 +1949,10 @@ module.exports = function(template) {
    *
    * @return {View}
    */
+
   View.prototype.before = function(node) {
-    node.parentNode.insertBefore(this.el, getNode(node));
+    var target = getNode(node);
+    target.parentNode.insertBefore(this.el, target);
     this.emit('mounted');
     View.emit('mounted', this);
     return this;
@@ -2191,16 +1965,12 @@ module.exports = function(template) {
    *
    * @return {View}
    */
+
   View.prototype.after = function(node) {
     var target = getNode(node);
-    if (target.nextSibling) {
-      node.parentNode.insertBefore(this.el, target.nextSibling);
-      this.emit('mounted');
-      View.emit('mounted', this);
-    }
-    else {
-      this.mount(node.parentNode);
-    }
+    target.parentNode.insertBefore(this.el, target.nextSibling);
+    this.emit('mounted');
+    View.emit('mounted', this);
     return this;
   };
 
@@ -2209,6 +1979,7 @@ module.exports = function(template) {
    *
    * @return {View}
    */
+
   View.prototype.remove = function() {
     if (this.isMounted() === false) return this;
     this.el.parentNode.removeChild(this.el);
@@ -2222,14 +1993,15 @@ module.exports = function(template) {
    *
    * @param {String} str
    */
+
   View.prototype.interpolate = function(str) {
     var self = this;
     var data = {};
-    var props = this.bindings.interpolator.props(str);
+    var props = this.props(str);
     props.forEach(function(prop){
       data[prop] = self.get(prop);
     });
-    return this.bindings.interpolator.value(str, {
+    return View.bindings.interpolator.value(str, {
       context: this.scope || this,
       scope: data
     });
@@ -2241,6 +2013,7 @@ module.exports = function(template) {
    * @param {Strign} prop
    * @param {Function} callback
    */
+
   View.prototype.watch = function(prop, callback) {
     var self = this;
     if (Array.isArray(prop)) {
@@ -2266,6 +2039,7 @@ module.exports = function(template) {
    * @param {Strign} prop
    * @param {Function} callback
    */
+
   View.prototype.unwatch = function(prop, callback) {
     var self = this;
     if (Array.isArray(prop)) {
@@ -2285,10 +2059,16 @@ module.exports = function(template) {
   };
 
   return View;
-};
+}
+
+
+/**
+ * Exports
+ */
+
+module.exports = createView;
 });
 require.register("ripplejs-ripple/lib/bindings.js", function(exports, require, module){
-var render = require('./render');
 var Interpolator = require('interpolate');
 
 /**
@@ -2351,17 +2131,6 @@ Bindings.prototype.filter = function(name, fn) {
   return this;
 };
 
-/**
- * Render a template and a view
- *
- * @param {View} view
- *
- * @return {Element}
- */
-Bindings.prototype.bind = function(view) {
-  return render(this, view);
-};
-
 module.exports = Bindings;
 });
 require.register("ripplejs-ripple/lib/model.js", function(exports, require, module){
@@ -2411,7 +2180,13 @@ module.exports = function(){
    * @return {Model}
    */
   Model.prototype.watch = function(key, callback) {
-    this.observer(key).on('change', callback);
+    if(arguments.length === 1) {
+      callback = key;
+      this.observer.on('change', callback);
+    }
+    else {
+      this.observer(key).on('change', callback);
+    }
     return this;
   };
 
@@ -2424,7 +2199,13 @@ module.exports = function(){
    * @return {Model}
    */
   Model.prototype.unwatch = function(key, callback) {
-    this.observer(key).off('change', callback);
+    if(arguments.length === 1) {
+      callback = key;
+      this.observer.off('change', callback);
+    }
+    else {
+      this.observer(key).off('change', callback);
+    }
     return this;
   };
 
@@ -2476,8 +2257,10 @@ var AttrBinding = require('./attr-binding');
 var ChildBinding = require('./child-binding');
 var Directive = require('./directive');
 
-module.exports = function(bindings, view) {
-  var el = domify(view.template);
+module.exports = function(options) {
+  var view = options.view;
+  var bindings = options.bindings;
+  var el = domify(options.template);
   var fragment = document.createDocumentFragment();
   fragment.appendChild(el);
 
@@ -2543,7 +2326,7 @@ function Directive(view, node, attr, binding) {
   this.text = node.getAttribute(attr);
   this.node = node;
   this.attr = attr;
-  this.props = view.bindings.interpolator.props(this.text);
+  this.props = view.props(this.text);
   this.bind();
 }
 
@@ -2613,7 +2396,7 @@ function TextBinding(view, node) {
   this.view = view;
   this.text = node.data;
   this.node = node;
-  this.props = view.bindings.interpolator.props(this.text);
+  this.props = view.props(this.text);
   this.render = this.render.bind(this);
   if(this.props.length) {
     this.bind();
@@ -2696,7 +2479,7 @@ function AttrBinding(view, node, attr) {
   this.text = node.getAttribute(attr);
   this.node = node;
   this.attr = attr;
-  this.props = view.bindings.interpolator.props(this.text);
+  this.props = view.props(this.text);
   this.bind();
 }
 
@@ -2798,9 +2581,9 @@ function ChildBinding(view, node, View) {
  */
 ChildBinding.prototype.getProps = function(){
   var ret = [];
-  var interpolator = this.view.bindings.interpolator;
+  var view = this.view;
   each(this.attrs, function(name, value){
-    ret = ret.concat(interpolator.props(value));
+    ret = ret.concat(view.props(value));
   });
   return unique(ret);
 };
@@ -2905,160 +2688,6 @@ module.exports = function(View) {
         this.node.removeEventListener(name, this.callback, true);
       }
     });
-  });
-};
-});
-require.register("ripplejs-each/index.js", function(exports, require, module){
-var observe = require('array-observer');
-
-module.exports = function(View) {
-  View.directive('each', {
-    bind: function(el){
-      this.template = el.innerHTML;
-      el.innerHTML = '';
-      this.previous = {};
-    },
-    update: function(items, el, view){
-      var template = this.template;
-      var self = this;
-      var replacing = false;
-      el.innerHTML = '';
-
-      // The new value isn't an array.
-      if(Array.isArray(items) === false) {
-        throw new Error(items + ' should be an array');
-      }
-
-      // remove the previous emitter so that we don't
-      // keep watching the old array for changes
-      if(this.previous.emitter) {
-        this.previous.emitter.off();
-      }
-
-      // Destroy any old views
-      if(this.previous.items) {
-        this.previous.items.forEach(function(view){
-          view.destroy();
-        });
-      }
-
-      function reposition() {
-        items.forEach(function(view, i){
-          view.set('$index', i).appendTo(self.node);
-        });
-      }
-
-      function createViewFromValue(item, i) {
-        var data = {};
-        if(typeof item === 'object') data = item;
-        data.$index = i;
-        data.$value = item;
-        var child = new View({
-          template: template,
-          owner: view,
-          scope: view,
-          data: data
-        });
-        return child;
-      }
-
-      // Replace all objects in the array with views
-      items.forEach(function(obj, index){
-        var view = createViewFromValue(obj, index);
-        items.splice(index, 1, view);
-      });
-
-      // Watch the array for changes
-      var emitter = observe(items);
-
-      // Items are added to the array
-      emitter.on('add', function(item, index){
-        if(replacing) return;
-        var view = createViewFromValue(item, index);
-        replacing = true;
-        items.splice(index, 1, view);
-        replacing = false;
-        reposition();
-      });
-
-      // Items are removed from the array
-      emitter.on('remove', function(view){
-        if(view instanceof View) {
-          view.destroy();
-          reposition();
-        }
-      });
-
-      // Re-render everything on a sort
-      emitter.on('sort', function(){
-        reposition();
-      });
-
-      // Add all of the views to the DOM immediately
-      reposition();
-
-      // Store it so that we can destroy all of the views
-      // if the array is changed
-      this.previous.items = items;
-      this.previous.emitter = emitter;
-    },
-    unbind: function(){
-      if(this.previous.emitter) {
-        this.previous.emitter.off();
-      }
-      if(this.previous.items) {
-        this.previous.items.forEach(function(view){
-          view.destroy();
-        });
-      }
-      this.previous = {};
-    }
-  });
-}
-});
-require.register("ripplejs-dispatch/lib/index.js", function(exports, require, module){
-var slice = [].slice;
-
-function dispatch(name){
-  if(document.body.contains(this.el) === false) {
-    throw new Error('View must be mounted before events can be dispatched');
-  }
-  var details = slice.call(arguments);
-  details.shift(); // Remove event name
-  var event = new CustomEvent(name, {
-    detail: details,
-    bubbles: true,
-    cancelable: true
-  });
-  this.el.dispatchEvent(event);
-}
-
-function listen(name, fn){
-  var self = this;
-  this.el.addEventListener(name, function(e){
-    var args = e.detail.slice();
-    args.unshift(e);
-    fn.apply(self, args);
-  });
-}
-
-module.exports = function(View) {
-  View.prototype.dispatch = dispatch;
-  View.prototype.dispatchListener = listen;
-};
-});
-require.register("ripplejs-refs/index.js", function(exports, require, module){
-module.exports = function(View) {
-  View.directive('ref', {
-    bind: function(){
-      this.view.refs = {};
-    },
-    update: function(value){
-      this.view.refs[value] = this.node;
-    },
-    unbind: function(){
-      this.view.refs = null;
-    }
   });
 };
 });
@@ -3207,6 +2836,128 @@ module.exports = function(arr) {
   }
 
   return arr;
+};
+});
+require.register("ripplejs-each/index.js", function(exports, require, module){
+var observe = require('array-observer');
+
+module.exports = function(View) {
+  View.directive('each', {
+    bind: function(el){
+      this.View = View.create(el.innerHTML);
+      el.innerHTML = '';
+      this.previous = {};
+    },
+    update: function(items, el, view){
+      var Child = this.View;
+      var self = this;
+      var replacing = false;
+      el.innerHTML = '';
+
+      // The new value isn't an array.
+      if(Array.isArray(items) === false) {
+        throw new Error(items + ' should be an array');
+      }
+
+      // remove the previous emitter so that we don't
+      // keep watching the old array for changes
+      if(this.previous.emitter) {
+        this.previous.emitter.off();
+      }
+
+      // Destroy any old views
+      if(this.previous.items) {
+        this.previous.items.forEach(function(view){
+          view.destroy();
+        });
+      }
+
+      function reposition() {
+        items.forEach(function(view, i){
+          view.set('$index', i).appendTo(self.node);
+        });
+      }
+
+      function createViewFromValue(item, i) {
+        var data = {};
+        if(typeof item === 'object') data = item;
+        data.$index = i;
+        data.$value = item;
+        var child = new Child({
+          owner: view,
+          scope: view,
+          data: data
+        });
+        return child;
+      }
+
+      // Replace all objects in the array with views
+      items.forEach(function(obj, index){
+        var view = createViewFromValue(obj, index);
+        items.splice(index, 1, view);
+      });
+
+      // Watch the array for changes
+      var emitter = observe(items);
+
+      // Items are added to the array
+      emitter.on('add', function(item, index){
+        if(replacing) return;
+        var view = createViewFromValue(item, index);
+        replacing = true;
+        items.splice(index, 1, view);
+        replacing = false;
+        reposition();
+      });
+
+      // Items are removed from the array
+      emitter.on('remove', function(view){
+        if(view instanceof Child) {
+          view.destroy();
+          reposition();
+        }
+      });
+
+      // Re-render everything on a sort
+      emitter.on('sort', function(){
+        reposition();
+      });
+
+      // Add all of the views to the DOM immediately
+      reposition();
+
+      // Store it so that we can destroy all of the views
+      // if the array is changed
+      this.previous.items = items;
+      this.previous.emitter = emitter;
+    },
+    unbind: function(){
+      if(this.previous.emitter) {
+        this.previous.emitter.off();
+      }
+      if(this.previous.items) {
+        this.previous.items.forEach(function(view){
+          view.destroy();
+        });
+      }
+      this.previous = {};
+    }
+  });
+}
+});
+require.register("ripplejs-refs/index.js", function(exports, require, module){
+module.exports = function(View) {
+  View.directive('ref', {
+    bind: function(){
+      this.view.refs = {};
+    },
+    update: function(value){
+      this.view.refs[value] = this.node;
+    },
+    unbind: function(){
+      this.view.refs = null;
+    }
+  });
 };
 });
 require.register("component-overlay/index.js", function(exports, require, module){
@@ -3534,7 +3285,6 @@ ClassList.prototype.contains = function(name){
 
 });
 require.register("component-query/index.js", function(exports, require, module){
-
 function one(selector, el) {
   return el.querySelector(selector);
 }
@@ -3554,7 +3304,9 @@ exports.engine = function(obj){
   if (!obj.all) throw new Error('.all callback required');
   one = obj.one;
   exports.all = obj.all;
+  return exports;
 };
+
 
 });
 require.register("component-dialog/index.js", function(exports, require, module){
@@ -3906,6 +3658,7 @@ module.exports = function (element, selector, checkYoSelf, root) {
       return  
   }
 }
+
 });
 require.register("component-delegate/index.js", function(exports, require, module){
 /**
@@ -3951,6 +3704,7 @@ exports.unbind = function(el, type, fn, capture){
   event.unbind(el, type, fn, capture);
 };
 
+
 });
 require.register("visionmedia-debug/index.js", function(exports, require, module){
 if ('undefined' == typeof window) {
@@ -3958,6 +3712,7 @@ if ('undefined' == typeof window) {
 } else {
   module.exports = require('./debug');
 }
+
 
 });
 require.register("visionmedia-debug/debug.js", function(exports, require, module){
@@ -4760,6 +4515,7 @@ function styles(el) {
   }
 }
 
+
 });
 require.register("component-css/lib/vendor.js", function(exports, require, module){
 /**
@@ -4953,6 +4709,7 @@ function computed(el, prop, precomputed) {
   // IE returns zIndex value as an integer.
   return undefined === ret ? ret : ret + '';
 }
+
 
 });
 require.register("component-value/index.js", function(exports, require, module){
@@ -6199,6 +5956,7 @@ exports.value = function(val){
   });
 };
 
+
 });
 require.register("component-dom/lib/events.js", function(exports, require, module){
 /**
@@ -6266,58 +6024,13 @@ exports.off = function(event, selector, fn, capture){
 
 });
 require.register("hello_button/index.js", function(exports, require, module){
+var xpto2;
 
-var Dialog = require('dialog');
-var dom = require('dom');
-var markup = require('./template.html');
+xpto2 = 'teste';
 
-
-function openDialog(){
-  Dialog('Hello, word')
-    .closable()
-    .modal()
-    .show();
-}
-
-module.exports = function(){
-  return dom(markup).on('click', openDialog);
-}
+console.log(xpto2);
 
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -6346,6 +6059,8 @@ module.exports = function(){
 require.register("component-dialog/template.html", function(exports, require, module){
 module.exports = '<div id="dialog" class="hide">\n  <div class="content">\n    <span class="title">Title</span>\n    <a href="#" class="close">&times;<em>close</em></a>\n    <div class="body">\n      <p>Message</p>\n    </div>\n  </div>\n</div>\n';
 });
+
+
 
 
 
@@ -6421,11 +6136,10 @@ require.alias("ripplejs-keypath/index.js", "ripplejs-path-observer/deps/keypath/
 require.alias("ripplejs-keypath/index.js", "ripplejs-keypath/index.js");
 require.alias("component-emitter/index.js", "ripplejs-path-observer/deps/emitter/index.js");
 
-require.alias("jkroso-equals/index.js", "ripplejs-path-observer/deps/equals/index.js");
-require.alias("jkroso-type/index.js", "jkroso-equals/deps/type/index.js");
+require.alias("component-type/index.js", "ripplejs-path-observer/deps/type/index.js");
 
-require.alias("component-clone/index.js", "ripplejs-path-observer/deps/clone/index.js");
-require.alias("component-type/index.js", "component-clone/deps/type/index.js");
+require.alias("anthonyshort-raf-queue/index.js", "ripplejs-path-observer/deps/raf-queue/index.js");
+require.alias("component-raf/index.js", "anthonyshort-raf-queue/deps/raf/index.js");
 
 require.alias("ripplejs-path-observer/index.js", "ripplejs-path-observer/index.js");
 require.alias("yields-uniq/index.js", "ripplejs-ripple/deps/uniq/index.js");
@@ -6440,18 +6154,10 @@ require.alias("ripplejs-each/index.js", "each/index.js");
 require.alias("ripplejs-array-observer/index.js", "ripplejs-each/deps/array-observer/index.js");
 require.alias("component-emitter/index.js", "ripplejs-array-observer/deps/emitter/index.js");
 
-require.alias("ripplejs-dispatch/lib/index.js", "Ripple/deps/dispatch/lib/index.js");
-require.alias("ripplejs-dispatch/lib/index.js", "Ripple/deps/dispatch/index.js");
-require.alias("ripplejs-dispatch/lib/index.js", "dispatch/index.js");
-require.alias("ripplejs-dispatch/lib/index.js", "ripplejs-dispatch/index.js");
 require.alias("ripplejs-refs/index.js", "Ripple/deps/refs/index.js");
 require.alias("ripplejs-refs/index.js", "refs/index.js");
 
-require.alias("ripplejs-array-observer/index.js", "Ripple/deps/array-observer/index.js");
-require.alias("ripplejs-array-observer/index.js", "array-observer/index.js");
-require.alias("component-emitter/index.js", "ripplejs-array-observer/deps/emitter/index.js");
-
-require.alias("hello_button/index.js", "Ripple/deps/hello_button/index.js");
+require.alias("hello_button/index.coffee", "Ripple/deps/hello_button/index.coffee");
 require.alias("hello_button/index.js", "Ripple/deps/hello_button/index.js");
 require.alias("hello_button/index.js", "hello_button/index.js");
 require.alias("component-dialog/index.js", "hello_button/deps/dialog/index.js");

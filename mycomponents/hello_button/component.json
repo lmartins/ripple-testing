@@ -8,7 +8,7 @@
   "development": {},
   "main": "index.js",
   "scripts": [
-    "index.js"
+    "index.coffee"
   ],
   "templates": [
     "template.html"

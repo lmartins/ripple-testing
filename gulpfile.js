@@ -1,37 +1,53 @@
 'use strict';
 
-var gulp = require('gulp'),
-  gutil      = require('gulp-util'),
-  sass       = require('gulp-sass'),
-  prefix     = require('gulp-autoprefixer'),
-  coffee     = require('gulp-coffee'),
-  coffeelint = require('gulp-coffeelint'),
-  plumber    = require('gulp-plumber'),
-  changed    = require('gulp-changed'),
-  uglify     = require('gulp-uglify'),
-  livereload = require('gulp-livereload'),
-  notify     = require('gulp-notify');
+var gulp       = require('gulp'),
+    gutil      = require('gulp-util'),
+    sass       = require('gulp-sass'),
+    prefix     = require('gulp-autoprefixer'),
+    coffee     = require('gulp-coffee'),
+    coffeelint = require('gulp-coffeelint'),
+    component  = require('gulp-component'),
+    componentcoffee  = require('component-coffee'),
+    plumber    = require('gulp-plumber'),
+    changed    = require('gulp-changed'),
+    uglify     = require('gulp-uglify'),
+    livereload = require('gulp-livereload'),
+    notify     = require('gulp-notify');
 
 var options = {
-  // HTML
-  HTML_SOURCE     : ['*.html'],
 
-  // SASS / CSS
-  SASS_SOURCE     : "src/sass/**/*.scss",
-  SASS_BUILD      : "build/css/",
+  COFFEE: {
+    src: ["src/coffee/**/*.coffee"],
+    build: "build/js/"
+  },
 
-  // JavaScript
-  COFFEE_SOURCE   : "src/js/**/*.coffee",
-  COFFEE_BUILD    : "build/js/",
+  COMPONENT: {
+    manifest: "component.json",
+    build: "build/css/"
+  },
 
-  // Live reload
+  HTML:{
+    src: 'pages/*.html'
+  },
+
+  SASS: {
+    src: "src/sass/**/*.scss",
+    build: "build/css/"
+  },
+
+  IMAGES: {
+    src    : "src/images/**/*",
+    build  : "build/images",
+  },
+
   LIVE_RELOAD_PORT: 35729
+
 }
 
 
-// Compile Our Sass
+// SASS ------------------------------------------------------------------------
 gulp.task('sass', function() {
-  gulp.src(options.SASS_SOURCE)
+  gulp.src(options.SASS.src)
     .pipe(plumber())
     .pipe(sass({
       outputStyle: 'compressed'
@@ -41,14 +57,15 @@ gulp.task('sass', function() {
       console.log("Error:", err);
     })
     .pipe(prefix( "last 1 version" ))
-    .pipe(gulp.dest(options.SASS_BUILD))
+    .pipe(gulp.dest(options.SASS.build))
     .pipe(livereload());
 });
 
-// Compile Our Coffee
+
+// COFFEE ----------------------------------------------------------------------
 gulp.task('coffee', function () {
-  gulp.src( options.COFFEE_SOURCE )
-    .pipe(changed( options.COFFEE_BUILD , { extension: '.js' }))
+  gulp.src( options.COFFEE.src )
+    .pipe(changed( options.COFFEE.build , { extension: '.js' }))
     // .pipe(coffeelint())
     // .pipe(coffeelint.reporter())
     .pipe(coffee({
@@ -56,20 +73,54 @@ gulp.task('coffee', function () {
       sourceMap: true
       })
     .on('error', gutil.log))
-    .pipe(gulp.dest( options.COFFEE_BUILD ))
+    .pipe(gulp.dest( options.COFFEE.build ))
     .pipe(livereload());
 });
 
 
+
+// COMPONENT -------------------------------------------------------------------
+gulp.task('component-js', function () {
+  gulp.src( options.COMPONENT.manifest )
+    .pipe(component.scripts({
+      standalone: false,
+      configure: function (builder) {
+        builder.use( componentcoffee )
+      }
+    }))
+    .pipe(gulp.dest( options.COFFEE.build ))
+})
+
+gulp.task('component-css', function () {
+  gulp.src( options.COMPONENT.manifest )
+    .pipe(component.styles({
+      configure: function (builder) {
+        builder.use( sass )
+      }
+    }))
+    .pipe(gulp.dest( options.SASS.build ))
+})
+
+
+
+// HTML ------------------------------------------------------------------------
 gulp.task('html', function () {
-  gulp.src( options.HTML_SOURCE )
+  gulp.src( options.HTML.src )
     .pipe(livereload());
 });
 
+
+
+
+// WATCHERS AND TASKS ----------------------------------------------------------
+
+gulp.task('component', [ 'component-js', 'component-css' ]);
 
 gulp.task('default', function () {
-  // server = livereload();
-  gulp.watch(options.HTML_SOURCE, ['html']);
-  gulp.watch(options.COFFEE_SOURCE, ['coffee']);
-  gulp.watch(options.SASS_SOURCE, ['sass']  );
+  gulp.watch( options.HTML.src , ['html']);
+  gulp.watch( options.COFFEE.src , ['coffee']);
+  gulp.watch( options.COMPONENT.manifest , ['component-js', 'component-css']);
+  // gulp.watch(options.IMAGE_SOURCE, ['images']);
+  gulp.watch( options.HTML.src , ['html']  );
+  gulp.watch( options.SASS.src , ['sass']  );
 });
