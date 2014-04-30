@@ -8,7 +8,7 @@ events = require("events");
 
 each = require("each");
 
-customSMSTemplate = "<div class=\"SMSList\">\n  <div>State: {{emptyList}}</div>\n  <div class=\"SMSList-add\">\n    <input type=\"text\" ref=\"number\" on-enter=\"{{ this.add }}\" />\n    <button on-click=\"{{ this.add }}\">Add</button>\n    <button on-click=\"{{ this.sort }}\" hidden=\"{{ emptyList }}\">Sort</button>\n    <button on-click=\"{{ this.clear }}\" hidden=\"{{ emptyList }}\">Remove All</button>\n  </div>\n  <ul each=\"{{items}}\" class=\"SMSList-list\">\n    <li>{{number}} <button on-click=\"{{ this.removeItem.bind(this, $index) }}\">Remove</button></li>\n  </ul>\n  <div hidden=\"{{ items.length }}\">Empty List</div>\n</div>";
+customSMSTemplate = "<div class=\"SMSList\">\n  <div class=\"SMSList-add\">\n    <input type=\"text\" ref=\"number\" on-enter=\"{{ this.add }}\" />\n    <button on-click=\"{{ this.add }}\">Add</button>\n    <button on-click=\"{{ this.sort }}\" hidden=\"{{ emptyList }}\">Sort</button>\n    <button on-click=\"{{ this.clear }}\" hidden=\"{{ emptyList }}\">Remove All</button>\n  </div>\n  <div class=\"SMSList-list\">\n    <ul each=\"{{items}}\">\n      <li>{{number}} <button on-click=\"{{ this.removeItem.bind(this, $index) }}\">Remove</button></li>\n    </ul>\n    <div class=\"emptyList\" hidden=\"{{ !emptyList }}\">Empty List</div>\n  </div>\n</div>";
 
 CustomSMS = ripple(customSMSTemplate).use(each).use(events).use(refs);
 
@@ -45,11 +45,18 @@ CustomSMS.prototype.sort = function() {
   });
 };
 
-CustomSMS.created(function() {
+CustomSMS.ready(function() {
+  if (!this.data.items.length) {
+    this.set('emptyList', true);
+  } else {
+    this.set('emptyList', false);
+  }
   return this.data.items.on('change', (function(_this) {
     return function() {
-      if (_this.data.items.length) {
+      if (_this.data.items.length === 0) {
         return _this.set('emptyList', true);
+      } else {
+        return _this.set('emptyList', false);
       }
     };
   })(this));

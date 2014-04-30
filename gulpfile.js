@@ -23,6 +23,8 @@ var options = {
 
   COMPONENT: {
     manifest: "component.json",
+    // este src é usado para fazer watching de components pessoais
+    src: ["mycomponents/**/*.coffee", "mycomponents/**/*.js", "mycomponents/**/*.css"],
     build: "build/css/"
   },
 
@@ -119,7 +121,7 @@ gulp.task('component', [ 'component-js', 'component-css' ]);
 gulp.task('default', function () {
   gulp.watch( options.HTML.src , ['html']);
   gulp.watch( options.COFFEE.src , ['coffee']);
-  gulp.watch( options.COMPONENT.manifest , ['component-js', 'component-css']);
+  gulp.watch( [options.COMPONENT.manifest, options.COMPONENT.src] , ['component-js', 'component-css']);
   // gulp.watch(options.IMAGE_SOURCE, ['images']);
   gulp.watch( options.HTML.src , ['html']  );
   gulp.watch( options.SASS.src , ['sass']  );

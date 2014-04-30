@@ -6,7 +6,6 @@
     "component/dom": "*"
   },
   "development": {},
-  "main": "index.js",
   "scripts": [
     "index.coffee"
   ],

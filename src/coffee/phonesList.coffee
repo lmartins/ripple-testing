@@ -4,30 +4,28 @@ refs     = require "refs"
 events   = require "events"
 each     = require "each"
 
-
 # ADD CUSTOM NUMBERS =================================================================
 customSMSTemplate = """
-    <div class="SMSList">
-      <div>State: {{emptyList}}</div>
-      <div class="SMSList-add">
-        <input type="text" ref="number" on-enter="{{ this.add }}" />
-        <button on-click="{{ this.add }}">Add</button>
-        <button on-click="{{ this.sort }}" hidden="{{ emptyList }}">Sort</button>
-        <button on-click="{{ this.clear }}" hidden="{{ emptyList }}">Remove All</button>
-      </div>
-      <ul each="{{items}}" class="SMSList-list">
+  <div class="SMSList">
+    <div class="SMSList-add">
+      <input type="text" ref="number" on-enter="{{ this.add }}" />
+      <button on-click="{{ this.add }}">Add</button>
+      <button on-click="{{ this.sort }}" hidden="{{ emptyList }}">Sort</button>
+      <button on-click="{{ this.clear }}" hidden="{{ emptyList }}">Remove All</button>
+    </div>
+    <div class="SMSList-list">
+      <ul each="{{items}}">
         <li>{{number}} <button on-click="{{ this.removeItem.bind(this, $index) }}">Remove</button></li>
       </ul>
-      <div hidden="{{ items.length }}">Empty List</div>
+      <div class="emptyList" hidden="{{ !emptyList }}">Empty List</div>
     </div>
+  </div>
 """
 
 CustomSMS = ripple customSMSTemplate
   .use each
   .use events
   .use refs
-
-
 
 CustomSMS.directive 'on-enter',
   update: (fn, el, view) ->
@@ -51,9 +49,17 @@ CustomSMS::sort = () ->
   @data.items.sort (a, b) ->
     a.data.number > b.data.number
 
-CustomSMS.created ->
+CustomSMS.ready ->
+  if not @data.items.length
+    @set 'emptyList', true
+  else
+    @set 'emptyList', false
+
   @data.items.on 'change', =>
-    if @data.items.length then @set 'emptyList', true
+    if @data.items.length is 0
+      @set 'emptyList', true
+    else
+      @set 'emptyList', false
 
 
 customSMSList = new CustomSMS
@@ -67,3 +73,5 @@ customSMSList = new CustomSMS
       ]
 
 customSMSList.appendTo '.Page'
+# myButton = helloButton()
+# myButton.appendTo '.Page'
